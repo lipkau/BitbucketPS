@@ -14,11 +14,8 @@ if (!("System.Web.HttpUtility" -as [Type])) {
 #region ModuleConfig
 if (Get-Command Add-MetadataConverter -ErrorAction SilentlyContinue) {
     Add-MetadataConverter @{
-        [BitbucketPS.Server] = { "BitbucketPS.Server '{0}' '{1}' '{2}'" -f $_.Name, $_.Uri, $_.IsCloudServer }
-        "BitbucketPS.Server" = {
-            param($Name, $Uri, $IsCloudServer)
-            [BitbucketPS.Server]@{Name = $Name; Uri = $Uri; IsCloudServer = $IsCloudServer}
-        }
+        [BitbucketPS.Server] = { "BitbucketPSServer @{{Name = '{0}'; Uri = '{1}'; IsCloudServer = '{2}'}}" -f $_.Name, $_.Uri, $_.IsCloudServer }
+        "BitbucketPSServer" = { [BitbucketPS.Server]$Args[0] }
     }
 }
 
@@ -28,14 +25,20 @@ $script:Configuration = Configuration\Import-Configuration -CompanyName "Atlassi
 if (-not $script:Configuration.Server) {
     $script:Configuration.Server = @()
 }
+
+# if ($PSVersionTable.PSVersion.Major -ge 5) {
+#     $ConfigurationRoot = Get-Variable PSScriptRoot* -ErrorAction SilentlyContinue | Where-Object { $_.Name -eq "PSScriptRoot" } | ForEach-Object { $_.Value }
+#     Import-Module "${ConfigurationRoot}\BitbucketPS.Completion.ps1" -Force
+# }
 #endregion ModuleConfig
 
 #region LoadFunctions
-$PublicFunctions = @( Get-ChildItem -Path $PSScriptRoot\Public\*.ps1 -ErrorAction SilentlyContinue )
-$PrivateFunctions = @( Get-ChildItem -Path $PSScriptRoot\Private\*.ps1 -ErrorAction SilentlyContinue )
+$PublicFunctions = @( Get-ChildItem -Path "$PSScriptRoot/Public/*.ps1" -ErrorAction SilentlyContinue )
+$PrivateFunctions = @( Get-ChildItem -Path "$PSScriptRoot/Private/*.ps1" -ErrorAction SilentlyContinue )
+$ResourceFiles = @( Get-ChildItem -Path "$PSScriptRoot/BitbucketPS.ArgumentCompleters.ps1" )
 
 # Dot source the functions
-ForEach ($file in @($PublicFunctions + $PrivateFunctions)) {
+ForEach ($file in @($ResourceFiles + $PublicFunctions + $PrivateFunctions)) {
     Try {
         . $file.FullName
     }

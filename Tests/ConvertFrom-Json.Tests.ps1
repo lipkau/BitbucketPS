@@ -18,7 +18,7 @@ Describe "ConvertFrom-Json" {
         }
 
         It "Accepts pipeline input" {
-            { @($sampleJson, $sampleJson) | ConvertFrom-Json2 } | Should Not Throw
+            { @($sampleJson, $sampleJson) | ConvertFrom-Json } | Should Not Throw
         }
 
         It "Provides the same output as ConvertFrom-Json for JSON strings the latter can handle" {

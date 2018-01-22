@@ -67,3 +67,11 @@ function Get-Configuration {
         Write-Verbose "[$($MyInvocation.MyCommand.Name)] Function ended"
     }
 }
+
+if (Get-Command Register-ArgumentCompleter -ErrorAction Ignore) {
+    Register-ArgumentCompleter `
+        -CommandName "Get-BitbucketConfiguration" `
+        -Parameter "ServerName" `
+        -ScriptBlock $function:ServerNameCompletion `
+        -Description 'This argument completer handles the -ServerName parameter of the Get-Configuration command.'
+}

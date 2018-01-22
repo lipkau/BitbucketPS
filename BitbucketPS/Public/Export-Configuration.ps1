@@ -26,6 +26,8 @@ function Export-Configuration {
 
     begin {
         Write-Verbose "[$($MyInvocation.MyCommand.Name)] Function started"
+
+        Import-MqcnAlias
     }
 
     process {
@@ -35,7 +37,9 @@ function Export-Configuration {
         $export = $script:Configuration
         $export.Server = $export.Server | Select-Object -Exclude Session
 
-        Configuration\Export-Configuration -InputObject $export
+        # Get-Alias -Scope Script
+
+        ExportConfiguration -InputObject $export
     }
 
     end {
