@@ -1,0 +1,31 @@
+language: cpp
+
+matrix:
+  include:
+    - os: linux
+      dist: trusty
+      sudo: required
+    - os: osx
+      osx_image: xcode8.1
+  fast_finish: true
+
+install:
+  # Default 2.0.0 Ruby is buggy
+  # Default bundler version is buggy
+  - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then
+      rvm install ruby-2.3.3;
+      rvm --default use 2.3.3;
+    fi
+  # Ensure that libcurl+openssl is used on macOS for greater feature support.
+  - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then
+      export DYLD_LIBRARY_PATH=/usr/local/opt/curl/lib:/usr/local/opt/openssl/lib:${DYLD_LIBRARY_PATH};
+    fi
+  - pushd Tools
+  - ls
+  - sudo ./install-powershell.sh
+  - popd
+  # - ulimit -n 4096
+  - pwsh -File Tools/setup.ps1
+
+script:
+  - pwsh -Command "Invoke-Build"

@@ -17,8 +17,9 @@ $env:PSModulePath = "$($env:PSModulePath);$releasePath"
 
 Set-StrictMode -Version Latest
 
-Install-Module BuildHelpers -Scope CurrentUser
-Import-Module BuildHelpers
+Install-Module "Configuration" -Scope CurrentUser
+# Install-Module BuildHelpers -Scope CurrentUser
+# Import-Module BuildHelpers
 
 function Get-AppVeyorBuild {
     param()
@@ -186,7 +187,7 @@ task GenerateRelease CreateHelp, {
     Copy-Item -Path "$BuildRoot/PSScriptAnalyzerSettings.psd1" -Destination "$releasePath" -Force
 }, CompileModule
 
-task CreateHelp {
+task CreateHelp -If (Get-ChildItem "$BuildRoot/docs/commands") {
     Install-Module platyPS -Scope CurrentUser
     Import-Module platyPS -Force
     New-ExternalHelp -Path "$BuildRoot/docs/commands" -OutputPath "$BuildRoot/BitbucketPS/en-US" -Force
@@ -276,8 +277,27 @@ task GetVersion {
 #endregion BuildRelease
 
 #region Test
+function allCIsFinished {
+    param()
+
+    if (-not ($env:APPVEYOR_REPO_COMMIT)) {
+        return $true
+    }
+
+    [datetime]$stop = ([datetime]::Now).AddMinutes($env:TimeOutMins)
+    [bool]$success = $false
+
+    while (!$success -and ([datetime]::Now) -lt $stop) {
+        $builds = Get-TravisBuild
+        $currentBuild = $builds.builds | Where-Object {$_.commit.sha -eq $env:APPVEYOR_REPO_COMMIT}
+        $success = $currentBuild.state -eq "passed"
+        if (!$success) {Start-sleep 5}
+    }
+    if (!$currentBuild) {throw "Could not get information about Travis build with sha $env:APPVEYOR_REPO_COMMIT"}
+    if (!$success) {throw "Travis build did not finished in $env:TimeOutMins minutes"}
+}
 # Synopsis: Run Pester tests on the module
-task Test {
+task Test -If (allCIsFinished) {
     assert { Test-Path "$BuildRoot/Release/Tests/" -PathType Container }
 
     try {
@@ -318,29 +338,12 @@ function allJobsFinished {
 
     if (!$success) {throw "Test jobs were not finished in $env:TimeOutMins minutes"}
 }
-function allCIsFinished {
-    param()
-
-    [datetime]$stop = ([datetime]::Now).AddMinutes($env:TimeOutMins)
-    [bool]$success = $false
-
-    while (!$success -and ([datetime]::Now) -lt $stop) {
-        $builds = Get-TravisBuild
-        $currentBuild = $builds.builds | Where-Object {$_.commit.sha -eq $env:APPVEYOR_REPO_COMMIT}
-        $success = $currentBuild.state -eq "passed"
-        if (!$success) {Start-sleep 5}
-    }
-    if (!$currentBuild) {throw "Could not get information about Travis build with sha $env:APPVEYOR_REPO_COMMIT"}
-    if (!$success) {throw "Travis build did not finished in $env:TimeOutMins minutes"}
-}
 
 $shouldDeploy = (
     # only deploy from AppVeyor
     ($CI -eq "AppVeyor") -and
     # only deploy from last Job
     (allJobsFinished) -and
-    # Travis must have passed as well
-    (allCIsFinished) -and
     # only deploy master branch
     ($REPO_BRANCH -eq 'master') -and
     # it cannot be a PR
